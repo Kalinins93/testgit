@@ -1,0 +1,105 @@
+<?xml version = "1.0" encoding = "UTF-8" ?>
+<!--
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Oracle JDeveloper BPEL Designer
+
+  Created: Wed Aug 26 20:59:55 MSK 2020
+  Author:  ilkalinin
+  Type: BPEL 2.0 Process
+  Purpose: Empty BPEL Process
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+-->
+<process name="SpellerBPELProcess"
+               targetNamespace="http://neoflex.ru/DevGuideApp/Project1/SpellerBPELProcess"
+               xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+               xmlns:client="http://neoflex.ru/DevGuideApp/Project1/SpellerBPELProcess"
+               xmlns:ora="http://schemas.oracle.com/xpath/extension"
+               xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+               xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:ns1="http://neoflex.ru/DevGuideApp/Project1/MySpellerWebService"
+         xmlns:ns2="http://speller.yandex.net/services/spellservice" xmlns:ns3="http://xmlns.oracle.com/singleString"
+         xmlns:oraext="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.ExtFunc"
+         xmlns:bpm="http://xmlns.oracle.com/bpmn20/extensions"
+         xmlns:xp20="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.Xpath20"
+         xmlns:ess="http://xmlns.oracle.com/scheduler" xmlns:hwf="http://xmlns.oracle.com/bpel/workflow/xpath"
+         xmlns:xref="http://www.oracle.com/XSL/Transform/java/oracle.tip.xref.xpath.XRefXPathFunctions"
+         xmlns:dvm="http://www.oracle.com/XSL/Transform/java/oracle.tip.dvm.LookupValue"
+         xmlns:bpws="http://schemas.xmlsoap.org/ws/2003/03/business-process/"
+         xmlns:xdk="http://schemas.oracle.com/bpel/extension/xpath/function/xdk"
+         xmlns:ids="http://xmlns.oracle.com/bpel/services/IdentityService/xpath"
+         xmlns:ldap="http://schemas.oracle.com/xpath/extension/ldap" xmlns:ui="http://xmlns.oracle.com/soa/designer"
+         xml:id="id_1">
+
+  <!--
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+     ORCHESTRATION LOGIC
+     Set of activities coordinating the flow of messages across the
+     services integrated within this business process
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  -->
+  <import namespace="http://neoflex.ru/DevGuideApp/Project1/MySpellerWebService"
+          location="../WSDLs/MySpellerWebServiceWrapper.wsdl" importType="http://schemas.xmlsoap.org/wsdl/"
+          ui:processWSDL="true" xml:id="id_2"/>
+  <partnerLinks xml:id="id_3">
+    <partnerLink name="MySpellerWebService" partnerLinkType="ns1:MySpellerWebService" myRole="CheckTextPortType"
+                 xml:id="id_4"/>
+    <partnerLink name="YandexSpellerWebService" partnerLinkType="ns2:YandexSpellerWebService"
+                 partnerRole="SpellServiceSoap" xml:id="id_5"/>
+  </partnerLinks>
+  <variables xml:id="id_6">
+    <variable name="CheckText_InputVariable" messageType="ns1:requestMessage" xml:id="id_7"/>
+    <variable name="YandexCheckText_InputVariable" messageType="ns2:checkTextSoapIn" xml:id="id_8"/>
+    <variable name="YandexCheckText_OutputVariable" messageType="ns2:checkTextSoapOut" xml:id="id_9"/>
+    <variable name="CheckText_OutputVariable" messageType="ns1:replyMessage" xml:id="id_10"/>
+  </variables>
+  <sequence name="main" xml:id="id_11">
+    <receive name="ReceiveCheckText" createInstance="yes" partnerLink="MySpellerWebService"
+             portType="ns1:CheckTextPortType" operation="CheckText" variable="CheckText_InputVariable" xml:id="id_12"/>
+    <assign name="AssignYandexCheckText" xml:id="id_13">
+      <copy xml:id="id_14">
+        <from xml:id="id_15">$CheckText_InputVariable.part1</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_16">$YandexCheckText_InputVariable.parameters/ns2:text</to>
+      </copy>
+      <copy xml:id="id_17">
+        <from xml:id="id_18">32</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_19">$YandexCheckText_InputVariable.parameters/@options</to>
+      </copy>
+      <copy xml:id="id_20">
+        <from xml:id="id_21">"plain"</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_22">$YandexCheckText_InputVariable.parameters/@format</to>
+      </copy>
+      <copy xml:id="id_23">
+        <from xml:id="id_24">"ru"</from>
+        <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_25">$YandexCheckText_InputVariable.parameters/@lang</to>
+      </copy>
+    </assign>
+    <invoke name="InvokeYandexSpellService" bpelx:invokeAsDetail="no" partnerLink="YandexSpellerWebService"
+            portType="ns2:SpellServiceSoap" operation="checkText" inputVariable="YandexCheckText_InputVariable"
+            outputVariable="YandexCheckText_OutputVariable" xml:id="id_26"/>
+    <if name="CheckErrors" xml:id="id_27">
+      <documentation xml:id="id_28">
+        <![CDATA[Errors]]>
+      </documentation>
+      <condition xml:id="id_29">ora:countNodes('YandexCheckText_OutputVariable','parameters','ns2:SpellResult/ns2:error')&gt;0</condition>
+      <assign name="AssignFailCheckText" xml:id="id_30">
+        <copy xml:id="id_31">
+          <from xml:id="id_32">"Fail"</from>
+          <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_33">$CheckText_OutputVariable.part1</to>
+        </copy>
+      </assign>
+      <else xml:id="id_34">
+        <documentation xml:id="id_35">
+          <![CDATA[No Errors]]>
+        </documentation>
+        <assign name="AssignSuccessCheckText2" xml:id="id_36">
+          <copy xml:id="id_37">
+            <from xml:id="id_38">"Success"</from>
+            <to expressionLanguage="urn:oasis:names:tc:wsbpel:2.0:sublang:xpath1.0" xml:id="id_39">$CheckText_OutputVariable.part1</to>
+          </copy>
+        </assign>
+      </else>
+    </if>
+    <reply name="ReplyCheckText" partnerLink="MySpellerWebService" variable="CheckText_OutputVariable"
+           portType="ns1:CheckTextPortType" operation="CheckText" xml:id="id_40"/>
+  </sequence>
+</process>
